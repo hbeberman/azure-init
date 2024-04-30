@@ -14,6 +14,7 @@ pub trait Distribution {
 pub enum Distributions {
     Debian,
     Ubuntu,
+    AzureLinux,
 }
 
 impl Distribution for Distributions {
@@ -63,6 +64,9 @@ impl Distribution for Distributions {
                 }
 
                 Ok(0)
+            },
+            Distributions::AzureLinux => {
+                Ok(0)
             }
         }
     }
@@ -81,6 +85,9 @@ impl Distribution for Distributions {
                         status,
                     })
                 }
+            },
+            Distributions::AzureLinux => {
+                Ok(0)
             }
         }
     }
@@ -90,6 +97,7 @@ impl From<&str> for Distributions {
         match s {
             "debian" => Distributions::Debian,
             "ubuntu" => Distributions::Ubuntu,
+            "azurelinux" => Distributions::AzureLinux,
             _ => panic!("Unknown distribution"),
         }
     }
