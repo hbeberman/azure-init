@@ -104,7 +104,7 @@ async fn provision() -> Result<(), anyhow::Error> {
     // always pass an empty password
     Distributions::from("ubuntu")
         .create_user(username.as_str(), "")
-        .with_context(|| format!("Unabled to create user '{username}'"))?;
+        .with_context(|| format!("Unable to create user '{username}'"))?;
 
     user::create_ssh_directory(username.as_str(), &file_path)
         .await
