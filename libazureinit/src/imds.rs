@@ -20,6 +20,40 @@ pub struct PublicKeys {
     pub path: String,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+pub struct NetInterface {
+    #[serde(rename = "ipv4")]
+    pub ipv4: IPInfo,
+    #[serde(rename = "ipv6")]
+    pub ipv6: IPInfo,
+    #[serde(rename = "macAddress")]
+    pub mac_address: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+pub struct IPInfo {
+    #[serde(rename = "ipAddress")]
+    pub ip_address: Vec<IpAddress>,
+    #[serde(rename = "subnet", default)]
+    pub subnet: Vec<Subnet>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+pub struct IpAddress {
+    #[serde(rename = "privateIpAddress")]
+    pub private_ip_address: String,
+    #[serde(rename = "publicIpAddress")]
+    pub public_ip_address: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+pub struct Subnet {
+    #[serde(rename = "address")]
+    pub address: String,
+    #[serde(rename = "prefix")]
+    pub prefix: String,
+}
+
 pub async fn query_imds(client: &Client) -> Result<String, Error> {
     let url = "http://169.254.169.254/metadata/instance?api-version=2021-02-01";
     let mut headers = HeaderMap::new();
@@ -81,11 +115,19 @@ pub fn is_password_authentication_disabled(
     Ok(false)
 }
 
+pub fn get_networking(imds_body: String) -> Result<Vec<NetInterface>, Error> {
+    let data: Value = serde_json::from_str(&imds_body)?;
+    let net_interfaces =
+        Vec::<NetInterface>::deserialize(&data["network"]["interface"])?;
+
+    Ok(net_interfaces)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         get_hostname, get_ssh_keys, get_username,
-        is_password_authentication_disabled,
+        is_password_authentication_disabled, get_networking,
     };
 
     #[test]
@@ -199,5 +241,43 @@ mod tests {
                 .expect("Failed to interpret disablePasswordAuthentication.");
 
         assert_eq!(provision_with_password, true);
+    }
+
+    #[test]
+    fn test_get_networking() {
+        let file_body = r#"
+        {
+            "network": {
+                "interface": [
+                  {
+                    "ipv4": {
+                      "ipAddress": [
+                        {
+                          "privateIpAddress": "10.0.0.4",
+                          "publicIpAddress": ""
+                        }
+                      ],
+                      "subnet": [
+                        {
+                          "address": "10.0.0.0",
+                          "prefix": "24"
+                        }
+                      ]
+                    },
+                    "ipv6": {
+                      "ipAddress": []
+                    },
+                    "macAddress": "1234567890AB"
+                  }
+                ]
+              }
+        }"#
+        .to_string();
+
+        let networking =
+            get_networking(file_body).expect("Failed to get networking.");
+
+        assert_eq!(networking[0].mac_address, "1234567890AB".to_string());
+        assert_eq!(networking[0].ipv4.ip_address[0].private_ip_address, "10.0.0.4".to_string());
     }
 }
